@@ -312,38 +312,62 @@ export async function updateModule(id: string, updated: Module): Promise<Module[
 
 export async function deleteModule(id: string): Promise<Module[]> {
   try {
+    console.log('Deleting module:', id);
+    
+    // Get module first to clean up task states
+    const modules = await getCustomModules();
+    const module = modules.find(m => m.id === id);
+    
+    if (!module) {
+      console.warn('Module not found, deleting from localStorage only');
+      const filtered = (await getModulesFromLocalStorage()).filter(m => m.id !== id);
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('custom-modules', JSON.stringify(filtered));
+      }
+      return filtered;
+    }
+
     // Delete from Supabase (cascade will handle steps, tasks, and task_states)
     const { error } = await supabase
       .from('modules')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase delete error:', error);
+      throw error;
+    }
+
+    console.log('Module deleted from Supabase');
 
     // Clean up local task state
     if (typeof window !== 'undefined') {
       const taskState = getLocalTaskState();
-      const module = await getCustomModules().then(mods => mods.find(m => m.id === id));
-      if (module) {
-        const taskIds = module.steps.flatMap(s => s.tasks.map(t => t.id));
-        taskIds.forEach(tid => delete taskState[tid]);
-        setLocalTaskState(taskState);
+      const taskIds = module.steps.flatMap(s => s.tasks.map(t => t.id));
+      taskIds.forEach(tid => delete taskState[tid]);
+      setLocalTaskState(taskState);
+      
+      // Clean up completed modules
+      const completeModules = await getCompleteModules();
+      if (completeModules.has(id)) {
+        completeModules.delete(id);
+        await saveCompleteModules(completeModules);
       }
     }
 
-    const modules = await getCustomModules();
-    return modules;
-  } catch (err) {
+    // Fetch updated modules
+    const updatedModules = await getCustomModules();
+    return updatedModules;
+  } catch (err: any) {
     console.error('Error deleting module:', err);
+    
     // Fallback to localStorage
     const modules = await getModulesFromLocalStorage();
     const filtered = modules.filter(m => m.id !== id);
     if (typeof window !== 'undefined') {
       localStorage.setItem('custom-modules', JSON.stringify(filtered));
-    }
-    
-    // Also clean task state for this module's tasks
-    if (typeof window !== 'undefined') {
+      
+      // Also clean task state for this module's tasks
       const taskState = JSON.parse(localStorage.getItem(TASK_STATE_KEY) || '{}');
       const module = modules.find(m => m.id === id);
       if (module) {
