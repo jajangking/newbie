@@ -1,0 +1,3 @@
+{
+  "sql": "$(cat supabase-schema.sql)"
+}

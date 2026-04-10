@@ -1,0 +1,22 @@
+interface BadgeProps {
+  children: React.ReactNode;
+  variant?: 'default' | 'success' | 'warning' | 'info';
+  className?: string;
+}
+
+const variants = {
+  default: 'bg-zinc-100 text-zinc-800 dark:bg-zinc-800 dark:text-zinc-200',
+  success: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300',
+  warning: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300',
+  info: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',
+};
+
+export function Badge({ children, variant = 'default', className = '' }: BadgeProps) {
+  return (
+    <span
+      className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${variants[variant]} ${className}`}
+    >
+      {children}
+    </span>
+  );
+}
