@@ -53,6 +53,8 @@ async function resetAllTaskStates() {
 
 export async function getCustomModules(): Promise<Module[]> {
   try {
+    console.log('Fetching modules from Supabase...');
+    
     const { data, error } = await supabase
       .from('modules')
       .select(`
@@ -68,9 +70,12 @@ export async function getCustomModules(): Promise<Module[]> {
 
     if (error) {
       console.error('Error fetching modules:', error);
+      console.error('Error details:', error.message, error.details, error.hint);
       // Fallback to localStorage if Supabase fails
       return getModulesFromLocalStorage();
     }
+
+    console.log(`Fetched ${data?.length || 0} modules from Supabase`);
 
     // Transform the nested data into the Module interface
     const modules: Module[] = (data || []).map((row: any) => ({
@@ -105,7 +110,7 @@ export async function getCustomModules(): Promise<Module[]> {
     }
 
     return modules;
-  } catch (err) {
+  } catch (err: any) {
     console.error('Failed to get modules:', err);
     return getModulesFromLocalStorage();
   }
@@ -127,11 +132,15 @@ export async function saveModules(modules: Module[]): Promise<void> {
 
 export async function addModule(module: Module): Promise<Module[]> {
   try {
+    console.log('Adding module to Supabase:', module.title);
+    
     // Insert module
+    const moduleId = module.id || crypto.randomUUID();
+    
     const { data: moduleData, error: moduleError } = await supabase
       .from('modules')
       .insert({
-        id: module.id,
+        id: moduleId,
         title: module.title,
         description: module.description,
         category: module.category,
@@ -142,17 +151,23 @@ export async function addModule(module: Module): Promise<Module[]> {
       .select()
       .single();
 
-    if (moduleError) throw moduleError;
+    if (moduleError) {
+      console.error('Module insert error:', moduleError);
+      throw moduleError;
+    }
+
+    console.log('Module inserted:', moduleData.id);
 
     // Insert steps and tasks
     for (let stepIdx = 0; stepIdx < module.steps.length; stepIdx++) {
       const step = module.steps[stepIdx];
+      const stepId = step.id || crypto.randomUUID();
       
       const { data: stepData, error: stepError } = await supabase
         .from('steps')
         .insert({
-          id: step.id,
-          module_id: module.id,
+          id: stepId,
+          module_id: moduleData.id,
           title: step.title,
           description: step.description,
           tip: step.tip,
@@ -161,35 +176,48 @@ export async function addModule(module: Module): Promise<Module[]> {
         .select()
         .single();
 
-      if (stepError) throw stepError;
+      if (stepError) {
+        console.error('Step insert error:', stepError);
+        throw stepError;
+      }
+
+      console.log('Step inserted:', stepData.id);
 
       // Insert tasks for this step
       for (let taskIdx = 0; taskIdx < step.tasks.length; taskIdx++) {
         const task = step.tasks[taskIdx];
+        const taskId = task.id || crypto.randomUUID();
         
-        await supabase
+        const { error: taskError } = await supabase
           .from('tasks')
           .insert({
-            id: task.id,
-            step_id: step.id,
+            id: taskId,
+            step_id: stepData.id,
             label: task.label,
             task_order: taskIdx,
           });
+
+        if (taskError) {
+          console.error('Task insert error:', taskError);
+          throw taskError;
+        }
       }
     }
 
-    // Also save to localStorage for backwards compatibility
-    const modules = await getCustomModules();
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('custom-modules', JSON.stringify(modules));
-    }
+    console.log('All steps and tasks inserted successfully');
 
+    // Fetch updated modules from Supabase
+    const modules = await getCustomModules();
     return modules;
-  } catch (err) {
+  } catch (err: any) {
     console.error('Error adding module:', err);
+    console.error('Error details:', err?.message, err?.details, err?.hint);
+    
     // Fallback to localStorage
+    console.warn('Falling back to localStorage');
     const modules = await getModulesFromLocalStorage();
-    const updated = [...modules, module];
+    const moduleId = module.id || crypto.randomUUID();
+    const updated = [...modules, { ...module, id: moduleId }];
     if (typeof window !== 'undefined') {
       localStorage.setItem('custom-modules', JSON.stringify(updated));
     }

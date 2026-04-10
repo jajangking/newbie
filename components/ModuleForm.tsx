@@ -48,18 +48,18 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
     }
 
     const finalSteps: Step[] = validSteps.map((step, i) => ({
-      id: `step-${i + 1}`,
+      id: crypto.randomUUID(),
       title: step.title.trim(),
       description: '',
       tasks: step.tasks.filter(t => t.trim()).map((t, j) => ({
-        id: `t-${i + 1}-${j + 1}`,
+        id: crypto.randomUUID(),
         label: t.trim(),
         completed: false,
       })),
     }));
 
     const finalModule: Module = {
-      id: module?.id || `modul-${Date.now()}`,
+      id: module?.id || crypto.randomUUID(),
       title: title.trim(),
       description: title.trim(),
       category: category.trim(),
