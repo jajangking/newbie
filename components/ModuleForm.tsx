@@ -18,11 +18,13 @@ interface ModuleFormData {
 export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
   const [title, setTitle] = useState(module?.title || '');
   const [category, setCategory] = useState(module?.category || '');
-  const [steps, setSteps] = useState<{ title: string; tasks: string[] }[]>(
+  const [steps, setSteps] = useState<{ title: string; tasks: string[]; stepId?: string; taskIds?: string[] }[]>(
     module?.steps.map(s => ({
       title: s.title,
       tasks: s.tasks.map(t => t.label),
-    })) || [{ title: '', tasks: [''] }]
+      stepId: s.id,
+      taskIds: s.tasks.map(t => t.id),
+    })) || [{ title: '', tasks: [''], stepId: undefined, taskIds: undefined }]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -48,11 +50,11 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
     }
 
     const finalSteps: Step[] = validSteps.map((step, i) => ({
-      id: crypto.randomUUID(),
+      id: step.stepId || crypto.randomUUID(),
       title: step.title.trim(),
       description: '',
       tasks: step.tasks.filter(t => t.trim()).map((t, j) => ({
-        id: crypto.randomUUID(),
+        id: step.taskIds?.[j] || crypto.randomUUID(),
         label: t.trim(),
         completed: false,
       })),
@@ -72,7 +74,7 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
     onSave(finalModule);
   };
 
-  const addStep = () => setSteps([...steps, { title: '', tasks: [''] }]);
+  const addStep = () => setSteps([...steps, { title: '', tasks: [''], stepId: undefined, taskIds: undefined }]);
 
   const removeStep = (i: number) => {
     if (steps.length > 1) setSteps(steps.filter((_, idx) => idx !== i));
@@ -83,16 +85,30 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
   };
 
   const addTask = (i: number) => {
-    const u = [...steps]; u[i].tasks.push(''); setSteps(u);
+    const u = [...steps];
+    u[i].tasks.push('');
+    // Add undefined placeholder for task ID to keep alignment
+    if (u[i].taskIds) {
+      u[i].taskIds.push(undefined);
+    }
+    setSteps(u);
   };
 
   const updateTask = (si: number, ti: number, v: string) => {
-    const u = [...steps]; u[si].tasks[ti] = v; setSteps(u);
+    const u = [...steps];
+    u[si].tasks[ti] = v;
+    setSteps(u);
   };
 
   const removeTask = (si: number, ti: number) => {
     if (steps[si].tasks.length > 1) {
-      const u = [...steps]; u[si].tasks = u[si].tasks.filter((_, i) => i !== ti); setSteps(u);
+      const u = [...steps];
+      u[si].tasks = u[si].tasks.filter((_, i) => i !== ti);
+      // Also remove the task ID
+      if (u[si].taskIds) {
+        u[si].taskIds = u[si].taskIds.filter((_, i) => i !== ti);
+      }
+      setSteps(u);
     }
   };
 
@@ -131,9 +147,21 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
 
           {/* Steps */}
           <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wide">
+                Langkah-langkah
+              </h3>
+              <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                {steps.filter(s => s.title.trim()).length} langkah
+              </span>
+            </div>
+
             {steps.map((step, si) => (
               <div key={si} className="border border-zinc-200 dark:border-zinc-700 rounded-xl p-4 bg-zinc-50 dark:bg-zinc-800/50">
-                <div className="flex gap-2 mb-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="flex-shrink-0 w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-bold flex items-center justify-center">
+                    {si + 1}
+                  </span>
                   <input
                     type="text"
                     value={step.title}
@@ -141,12 +169,26 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
                     placeholder="Judul langkah..."
                     className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
-                  <button type="button" onClick={() => removeStep(si)} className="px-3 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg" disabled={steps.length <= 1}>🗑️</button>
+                  <button
+                    type="button"
+                    onClick={() => removeStep(si)}
+                    className="flex-shrink-0 p-2 text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
+                    title="Hapus langkah"
+                    disabled={steps.length <= 1}
+                  >
+                    🗑️
+                  </button>
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-2 ml-8">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
+                      Checklist ({step.tasks.filter(t => t.trim()).length}/{step.tasks.length})
+                    </span>
+                  </div>
                   {step.tasks.map((task, ti) => (
-                    <div key={ti} className="flex gap-2">
+                    <div key={ti} className="flex items-center gap-2">
+                      <span className="flex-shrink-0 text-zinc-400 text-sm">☐</span>
                       <input
                         type="text"
                         value={task}
@@ -154,15 +196,33 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
                         placeholder="Checklist task..."
                         className="flex-1 px-3 py-2 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white placeholder-zinc-400 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
-                      <button type="button" onClick={() => removeTask(si, ti)} className="px-2 text-red-400 hover:text-red-500" disabled={step.tasks.length <= 1}>✕</button>
+                      <button
+                        type="button"
+                        onClick={() => removeTask(si, ti)}
+                        className="flex-shrink-0 p-1 text-red-400 hover:text-red-500 transition-colors"
+                        title="Hapus task"
+                        disabled={step.tasks.length <= 1}
+                      >
+                        ✕
+                      </button>
                     </div>
                   ))}
-                  <button type="button" onClick={() => addTask(si)} className="text-xs text-blue-500 hover:text-blue-600 font-medium">+ Tambah checklist</button>
+                  <button
+                    type="button"
+                    onClick={() => addTask(si)}
+                    className="text-xs text-blue-500 hover:text-blue-600 font-medium flex items-center gap-1"
+                  >
+                    <span>+</span> Tambah checklist
+                  </button>
                 </div>
               </div>
             ))}
-            <button type="button" onClick={addStep} className="w-full py-2 border-2 border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 rounded-xl hover:border-blue-400 hover:text-blue-500 transition-colors">
-              + Tambah Langkah
+            <button
+              type="button"
+              onClick={addStep}
+              className="w-full py-3 border-2 border-dashed border-zinc-300 dark:border-zinc-600 text-zinc-500 dark:text-zinc-400 rounded-xl hover:border-blue-400 hover:text-blue-500 transition-colors flex items-center justify-center gap-2"
+            >
+              <span className="text-lg">+</span> Tambah Langkah
             </button>
           </div>
 
