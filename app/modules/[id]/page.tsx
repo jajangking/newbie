@@ -21,6 +21,7 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
   const [modules, setModules] = useState<Module[]>([]);
   const [loading, setLoading] = useState(true);
   const [isComplete, setIsComplete] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -96,17 +97,22 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
   };
 
   const resetProgress = async () => {
+    if (!confirm('Yakin mau reset progress?')) return;
+    
+    setSaving(true);
     const newState = { ...taskState };
     allTasks.forEach(t => delete newState[t.id]);
     setTaskState(newState);
-    
+
     // Update all task states in Supabase
     for (const task of allTasks) {
       await updateTaskState(task.id, false);
     }
+    setSaving(false);
   };
 
   const handleMarkComplete = async () => {
+    setSaving(true);
     const newState = await toggleCompleteModule(module.id);
     setIsComplete(newState);
 
@@ -115,12 +121,13 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
       const fullState = { ...taskState };
       allTasks.forEach(t => fullState[t.id] = true);
       setTaskState(fullState);
-      
+
       // Update all task states in Supabase
       for (const task of allTasks) {
         await updateTaskState(task.id, true);
       }
     }
+    setSaving(false);
   };
 
   return (
@@ -271,20 +278,44 @@ export default function ModuleDetailPage({ params }: { params: Promise<{ id: str
           <div className="flex gap-3">
             <button
               onClick={resetProgress}
-              className="px-6 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-all"
+              disabled={saving}
+              className="px-6 py-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 rounded-xl font-medium hover:bg-red-100 dark:hover:bg-red-900/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
             >
-              🔄 Reset Progress
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Resetting...
+                </>
+              ) : (
+                <>🔄 Reset Progress</>
+              )}
             </button>
 
             <button
               onClick={handleMarkComplete}
-              className={`px-6 py-3 rounded-xl font-medium transition-all ${
+              disabled={saving}
+              className={`px-6 py-3 rounded-xl font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 ${
                 isComplete
                   ? 'bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-700 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50'
                   : 'bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:shadow-lg'
               }`}
             >
-              {isComplete ? '✅ Sudah Selesai' : '✓ Tandai Selesai'}
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Saving...
+                </>
+              ) : isComplete ? (
+                <>✅ Sudah Selesai</>
+              ) : (
+                <>✓ Tandai Selesai</>
+              )}
             </button>
           </div>
         </div>

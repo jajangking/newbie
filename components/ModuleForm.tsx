@@ -18,6 +18,7 @@ interface ModuleFormData {
 export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
   const [title, setTitle] = useState(module?.title || '');
   const [category, setCategory] = useState(module?.category || '');
+  const [saving, setSaving] = useState(false);
   const [steps, setSteps] = useState<{ title: string; tasks: string[]; stepId?: string; taskIds?: string[] }[]>(
     module?.steps.map(s => ({
       title: s.title,
@@ -27,7 +28,7 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
     })) || [{ title: '', tasks: [''], stepId: undefined, taskIds: undefined }]
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!title.trim() || !category.trim()) {
@@ -71,7 +72,9 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
       steps: finalSteps,
     };
 
-    onSave(finalModule);
+    setSaving(true);
+    await onSave(finalModule);
+    setSaving(false);
   };
 
   const addStep = () => setSteps([...steps, { title: '', tasks: [''], stepId: undefined, taskIds: undefined }]);
@@ -228,11 +231,30 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
 
           {/* Actions */}
           <div className="flex gap-3 justify-end pt-4 border-t border-zinc-200 dark:border-zinc-800">
-            <button type="button" onClick={onClose} className="px-6 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={saving}
+              className="px-6 py-3 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 rounded-xl font-medium hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               Batal
             </button>
-            <button type="submit" className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg">
-              💾 Simpan
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl font-medium hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            >
+              {saving ? (
+                <>
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Menyimpan...
+                </>
+              ) : (
+                <>💾 Simpan</>
+              )}
             </button>
           </div>
         </form>
