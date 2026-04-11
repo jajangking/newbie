@@ -5,6 +5,7 @@ import { ModuleCard } from '@/components/ModuleCard';
 import { ModuleForm } from '@/components/ModuleForm';
 import type { Module } from '@/lib/modules';
 import { getAllModules, addModule, updateModule, deleteModule, getTaskState } from '@/lib/storage';
+import Link from 'next/link';
 
 interface TaskState {
   [taskId: string]: boolean;
@@ -108,6 +109,16 @@ export default function Home() {
                 <div className="text-3xl font-bold text-white">{completedTasks}</div>
                 <div className="text-sm text-white/80">Sudah Dicoba</div>
               </div>
+            </div>
+
+            {/* Tools Link */}
+            <div className="mt-6">
+              <Link
+                href="/tools/qr-generator"
+                className="inline-flex items-center gap-2 px-6 py-3 bg-white/20 backdrop-blur-sm text-white rounded-xl font-medium hover:bg-white/30 transition-all border border-white/30"
+              >
+                🔲 QR Code Generator
+              </Link>
             </div>
           </div>
         </div>

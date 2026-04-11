@@ -92,7 +92,7 @@ export function ModuleForm({ module, onSave, onClose }: ModuleFormProps) {
     u[i].tasks.push('');
     // Add undefined placeholder for task ID to keep alignment
     if (u[i].taskIds) {
-      u[i].taskIds.push(undefined);
+      u[i].taskIds.push(undefined as unknown as string);
     }
     setSteps(u);
   };
